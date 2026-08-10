@@ -3,7 +3,7 @@ from flask_cors import CORS
 from neo4j import GraphDatabase
 import os
 
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app)
 
 URI = os.environ.get("COGNODB_URI", "bolt+s://db-09f34e9e.databases.cognodb.com")
