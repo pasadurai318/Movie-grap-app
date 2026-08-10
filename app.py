@@ -15,7 +15,7 @@ def get_driver():
 
 @app.route("/")
 def home():
-    with open("index.html")as f:
+    with open("index.html") as f:
     return f.read()
 
 @app.route("/api/health")
