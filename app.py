@@ -16,7 +16,8 @@ def get_driver():
 @app.route("/")
 def home():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-     with open(os.path.join(base_dir, "index.html")) as f:
+    html_path = os.path.join(base_dir, "index.html")
+    with open(html_path) as f:
         return f.read()
 
 @app.route("/api/health")
@@ -35,9 +36,7 @@ def search_movies():
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run(
-                "MATCH (m:Movie) WHERE toLower(m.title) CONTAINS toLower($query) RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating ORDER BY m.rating DESC LIMIT 10",
-                query=query)
+            result = session.run("MATCH (m:Movie) WHERE toLower(m.title) CONTAINS toLower($query) RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating ORDER BY m.rating DESC LIMIT 10", query=query)
             movies = [dict(r) for r in result]
         driver.close()
         return jsonify(movies)
@@ -49,9 +48,7 @@ def movie_detail(title):
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run(
-                "MATCH (m:Movie {title: $title})<-[:ACTED_IN]-(a:Actor) RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating, collect(a.name) AS actors",
-                title=title)
+            result = session.run("MATCH (m:Movie {title: $title})<-[:ACTED_IN]-(a:Actor) RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating, collect(a.name) AS actors", title=title)
             record = result.single()
             if not record:
                 return jsonify({"error": "Movie not found"}), 404
@@ -66,9 +63,7 @@ def similar_movies(title):
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run(
-                "MATCH (m:Movie {title: $title})<-[:ACTED_IN]-(a:Actor)-[:ACTED_IN]->(other:Movie) WHERE other.title <> $title RETURN DISTINCT other.title AS title, other.year AS year, other.genre AS genre, other.rating AS rating, count(a) AS sharedActors ORDER BY sharedActors DESC LIMIT 6",
-                title=title)
+            result = session.run("MATCH (m:Movie {title: $title})<-[:ACTED_IN]-(a:Actor)-[:ACTED_IN]->(other:Movie) WHERE other.title <> $title RETURN DISTINCT other.title AS title, other.year AS year, other.genre AS genre, other.rating AS rating, count(a) AS sharedActors ORDER BY sharedActors DESC LIMIT 6", title=title)
             similar = [dict(r) for r in result]
         driver.close()
         return jsonify(similar)
@@ -80,9 +75,7 @@ def actor_detail(name):
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run(
-                "MATCH (a:Actor {name: $name})-[:ACTED_IN]->(m:Movie) RETURN a.name AS actor, collect({title: m.title, year: m.year, genre: m.genre}) AS movies",
-                name=name)
+            result = session.run("MATCH (a:Actor {name: $name})-[:ACTED_IN]->(m:Movie) RETURN a.name AS actor, collect({title: m.title, year: m.year, genre: m.genre}) AS movies", name=name)
             record = result.single()
             if not record:
                 return jsonify({"error": "Actor not found"}), 404
@@ -109,9 +102,7 @@ def movies_by_genre(genre):
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run(
-                "MATCH (m:Movie {genre: $genre}) RETURN m.title AS title, m.year AS year, m.rating AS rating ORDER BY m.rating DESC",
-                genre=genre)
+            result = session.run("MATCH (m:Movie {genre: $genre}) RETURN m.title AS title, m.year AS year, m.rating AS rating ORDER BY m.rating DESC", genre=genre)
             movies = [dict(r) for r in result]
         driver.close()
         return jsonify(movies)
