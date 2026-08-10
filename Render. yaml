@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: movie-graph-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: COGNODB_URI
+        value: bolt+s://db-09f34e9e.databases.cognodb.com
+      - key: COGNODB_USERNAME
+        value: cognodb
+      - key: COGNODB_PASSWORD
+        sync: false
