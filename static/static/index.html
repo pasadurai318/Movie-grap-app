@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Movie Graph Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+    header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 24px 32px; border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 1.8rem; color: #00d4aa; letter-spacing: 1px; }
+    header p { color: #888; font-size: 0.9rem; margin-top: 4px; }
+    .graph-icon { font-size: 2rem; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+    .search-box { display: flex; gap: 12px; margin-bottom: 32px; }
+    .search-box input { flex: 1; padding: 14px 20px; border-radius: 12px; border: 1px solid #2a2a4a; background: #1a1a2e; color: #fff; font-size: 1rem; outline: none; transition: border 0.2s; }
+    .search-box input:focus { border-color: #00d4aa; }
+    .search-box button { padding: 14px 28px; background: #00d4aa; color: #0f0f1a; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .search-box button:hover { background: #00b894; }
+    .genre-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+    .genre-chip { padding: 7px 16px; border-radius: 20px; border: 1px solid #2a2a4a; background: #1a1a2e; color: #aaa; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .genre-chip:hover, .genre-chip.active { background: #00d4aa; color: #0f0f1a; border-color: #00d4aa; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 14px; padding: 20px; cursor: pointer; transition: all 0.2s; }
+    .card:hover { border-color: #00d4aa; transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,212,170,0.1); }
+    .card h3 { font-size: 1rem; color: #fff; margin-bottom: 8px; }
+    .card .meta { font-size: 0.8rem; color: #888; margin-bottom: 6px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; background: #16213e; color: #00d4aa; border: 1px solid #00d4aa44; }
+    .rating { float: right; color: #ffd700; font-weight: 700; font-size: 0.9rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 18px; padding: 32px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+    .modal h2 { color: #00d4aa; font-size: 1.4rem; margin-bottom: 6px; }
+    .modal .meta { color: #888; margin-bottom: 16px; font-size: 0.9rem; }
+    .modal .close { position: absolute; top: 16px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #888; }
+    .modal .close:hover { color: #fff; }
+    .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #00d4aa; margin: 20px 0 10px; }
+    .actor-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actor-chip { padding: 6px 14px; background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .actor-chip:hover { border-color: #00d4aa; color: #00d4aa; }
+    .empty { text-align: center; padding: 60px 20px; color: #555; }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+    .loading { text-align: center; padding: 40px; color: #00d4aa; font-size: 1rem; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #555; display: inline-block; margin-right: 6px; }
+    .status-dot.connected { background: #00d4aa; }
+    .status-bar { display: flex; align-items: center; font-size: 0.8rem; color: #888; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="graph-icon">🎬</div>
+  <div>
+    <h1>Movie Graph Explorer</h1>
+    <p>Discover movies and actor connections powered by CognoDB graph database</p>
+  </div>
+</header>
+<div class="container">
+  <div class="status-bar">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Connecting to CognoDB...</span>
+  </div>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search movies... (e.g. Dark Knight, Inception)" />
+    <button onclick="searchMovies()">Search</button>
+  </div>
+  <div class="genre-bar" id="genreBar"></div>
+  <div id="resultsArea">
+    <div class="empty">
+      <div class="icon">🎥</div>
+      <p>Search for a movie or select a genre to explore</p>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <span class="close" onclick="closeModalDirect()">✕</span>
+    <div id="modalContent"></div>
+  </div>
+</div>
+<script>
+  const API = "";
+  async function checkHealth() {
+    try {
+      const res = await fetch(`${API}/api/health`);
+      const data = await res.json();
+      if (data.status === "connected") {
+        document.getElementById("statusDot").classList.add("connected");
+        document.getElementById("statusText").textContent = "Connected to CognoDB ✓";
+      } else {
+        document.getElementById("statusText").textContent = "DB connection error";
+      }
+    } catch { document.getElementById("statusText").textContent = "Cannot reach server"; }
+  }
+  async function loadGenres() {
+    try {
+      const res = await fetch(`${API}/api/genres`);
+      const genres = await res.json();
+      const bar = document.getElementById("genreBar");
+      bar.innerHTML = "";
+      genres.forEach(g => {
+        const chip = document.createElement("div");
+        chip.className = "genre-chip";
+        chip.textContent = g;
+        chip.onclick = () => filterByGenre(g, chip);
+        bar.appendChild(chip);
+      });
+    } catch {}
+  }
+  async function searchMovies() {
+    const q = document.getElementById("searchInput").value.trim();
+    setLoading();
+    try {
+      const res = await fetch(`${API}/api/movies/search?q=${encodeURIComponent(q)}`);
+      const movies = await res.json();
+      renderMovies(movies, q ? `Results for "${q}"` : "All Movies");
+    } catch { showError(); }
+  }
+  async function filterByGenre(genre, el) {
+    document.querySelectorAll(".genre-chip").forEach(c => c.classList.remove("active"));
+    el.classList.add("active");
+    setLoading();
+    try {
+      const res = await fetch(`${API}/api/genres/${encodeURIComponent(genre)}`);
+      const movies = await res.json();
+      renderMovies(movies, `Genre: ${genre}`);
+    } catch { showError(); }
+  }
+  function renderMovies(movies, title) {
+    const area = document.getElementById("resultsArea");
+    if (!movies.length) { area.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>No movies found</p></div>`; return; }
+    area.innerHTML = `<p style="color:#888;margin-bottom:16px;font-size:0.9rem">${title} — ${movies.length} found</p><div class="grid">${movies.map(m => `<div class="card" onclick="openMovie('${m.title.replace(/'/g, "\\'")}')"><div class="rating">⭐ ${m.rating}</div><h3>${m.title}</h3><p class="meta">${m.year}</p><span class="badge">${m.genre || "—"}</span></div>`).join("")}</div>`;
+  }
+  async function openMovie(title) {
+    document.getElementById("modalOverlay").classList.add("open");
+    document.getElementById("modalContent").innerHTML = `<div class="loading">Loading...</div>`;
+    try {
+      const [detailRes, similarRes] = await Promise.all([
+        fetch(`${API}/api/movies/${encodeURIComponent(title)}`),
+        fetch(`${API}/api/movies/${encodeURIComponent(title)}/similar`)
+      ]);
+      const detail = await detailRes.json();
+      const similar = await similarRes.json();
+      document.getElementById("modalContent").innerHTML = `<h2>${detail.title}</h2><p class="meta">${detail.year} | <span class="badge">${detail.genre}</span> | ⭐ ${detail.rating}</p><p class="section-title">Cast</p><div class="actor-chips">${(detail.actors||[]).map(a=>`<span class="actor-chip" onclick="openActor('${a.replace(/'/g,"\\'")}')">${a}</span>`).join("")}</div><p class="section-title">Similar Movies (via shared actors)</p>${similar.length?`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${similar.map(m=>`<div class="card" onclick="openMovie('${m.title.replace(/'/g,"\\'")}')"><div class="rating">⭐ ${m.rating}</div><h3>${m.title}</h3><p class="meta">${m.year}</p><p style="font-size:0.75rem;color:#00d4aa;margin-top:6px">${m.sharedActors} shared actor(s)</p></div>`).join("")}</div>`:`<p style="color:#555">No similar movies found</p>`}`;
+    } catch { document.getElementById("modalContent").innerHTML = `<p style="color:#f66">Failed to load movie details</p>`; }
+  }
+  async function openActor(name) {
+    document.getElementById("modalContent").innerHTML = `<div class="loading">Loading actor...</div>`;
+    try {
+      const res = await fetch(`${API}/api/actors/${encodeURIComponent(name)}`);
+      const data = await res.json();
+      document.getElementById("modalContent").innerHTML = `<h2>🎭 ${data.actor}</h2><p class="section-title">Movies</p><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${(data.movies||[]).map(m=>`<div class="card" onclick="openMovie('${m.title.replace(/'/g,"\\'")}')"><h3>${m.title}</h3><p class="meta">${m.year}</p><span class="badge">${m.genre}</span></div>`).join("")}</div>`;
+    } catch { document.getElementById("modalContent").innerHTML = `<p style="color:#f66">Failed to load actor</p>`; }
+  }
+  function closeModal(e) { if (e.target===document.getElementById("modalOverlay")) closeModalDirect(); }
+  function closeModalDirect() { document.getElementById("modalOverlay").classList.remove("open"); }
+  document.getElementById("searchInput").addEventListener("keydown", e => { if (e.key==="Enter") searchMovies(); });
+  function setLoading() { document.getElementById("resultsArea").innerHTML = `<div class="loading">⏳ Loading...</div>`; }
+  function showError() { document.getElementById("resultsArea").innerHTML = `<div class="empty"><div class="icon">⚠️</div><p>Failed to connect to database. Please try again.</p></div>`; }
+  checkHealth();
+  loadGenres();
+  searchMovies();
+</script>
+</body>
+</html>
