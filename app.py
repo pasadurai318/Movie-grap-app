@@ -15,7 +15,8 @@ def get_driver():
 
 @app.route("/")
 def home():
-    with open("index.html") as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+     with open(os.path.join(base_dir, "index.html")) as f:
         return f.read()
 
 @app.route("/api/health")
