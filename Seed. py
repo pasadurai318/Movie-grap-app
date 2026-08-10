@@ -1,0 +1,68 @@
+from neo4j import GraphDatabase
+import os
+
+URI = os.environ.get("COGNODB_URI", "bolt+s://db-09f34e9e.databases.cognodb.com")
+USERNAME = os.environ.get("COGNODB_USERNAME", "cognodb")
+PASSWORD = os.environ.get("COGNODB_PASSWORD", "")
+
+movies = [
+    {"title": "The Dark Knight", "year": 2008, "genre": "Action", "rating": 9.0},
+    {"title": "Inception", "year": 2010, "genre": "Sci-Fi", "rating": 8.8},
+    {"title": "Interstellar", "year": 2014, "genre": "Sci-Fi", "rating": 8.6},
+    {"title": "The Prestige", "year": 2006, "genre": "Thriller", "rating": 8.5},
+    {"title": "Memento", "year": 2000, "genre": "Thriller", "rating": 8.4},
+    {"title": "Batman Begins", "year": 2005, "genre": "Action", "rating": 8.2},
+    {"title": "The Dark Knight Rises", "year": 2012, "genre": "Action", "rating": 8.4},
+    {"title": "Dunkirk", "year": 2017, "genre": "War", "rating": 7.9},
+    {"title": "Tenet", "year": 2020, "genre": "Sci-Fi", "rating": 7.3},
+    {"title": "Oppenheimer", "year": 2023, "genre": "Drama", "rating": 8.9},
+    {"title": "Avengers: Endgame", "year": 2019, "genre": "Action", "rating": 8.4},
+    {"title": "Iron Man", "year": 2008, "genre": "Action", "rating": 7.9},
+    {"title": "Thor", "year": 2011, "genre": "Action", "rating": 7.0},
+    {"title": "The Avengers", "year": 2012, "genre": "Action", "rating": 8.0},
+    {"title": "Guardians of the Galaxy", "year": 2014, "genre": "Sci-Fi", "rating": 8.0},
+    {"title": "Pulp Fiction", "year": 1994, "genre": "Crime", "rating": 8.9},
+    {"title": "Django Unchained", "year": 2012, "genre": "Western", "rating": 8.4},
+    {"title": "Inglourious Basterds", "year": 2009, "genre": "War", "rating": 8.3},
+    {"title": "The Hateful Eight", "year": 2015, "genre": "Western", "rating": 7.8},
+    {"title": "Kill Bill Vol 1", "year": 2003, "genre": "Action", "rating": 8.1},
+]
+
+actors = [
+    {"name": "Christian Bale", "movies": ["The Dark Knight", "Batman Begins", "The Dark Knight Rises", "The Prestige", "Memento"]},
+    {"name": "Leonardo DiCaprio", "movies": ["Inception", "Django Unchained", "The Hateful Eight"]},
+    {"name": "Matthew McConaughey", "movies": ["Interstellar", "Oppenheimer"]},
+    {"name": "Cillian Murphy", "movies": ["The Dark Knight", "Batman Begins", "Dunkirk", "Oppenheimer"]},
+    {"name": "Tom Hardy", "movies": ["The Dark Knight Rises", "Inception", "Dunkirk"]},
+    {"name": "Robert Downey Jr", "movies": ["Iron Man", "The Avengers", "Avengers: Endgame"]},
+    {"name": "Chris Evans", "movies": ["The Avengers", "Avengers: Endgame"]},
+    {"name": "Chris Hemsworth", "movies": ["Thor", "The Avengers", "Avengers: Endgame"]},
+    {"name": "Samuel L Jackson", "movies": ["Pulp Fiction", "Django Unchained", "The Hateful Eight", "Avengers: Endgame", "Iron Man"]},
+    {"name": "Uma Thurman", "movies": ["Pulp Fiction", "Kill Bill Vol 1"]},
+    {"name": "John Travolta", "movies": ["Pulp Fiction"]},
+    {"name": "Jamie Foxx", "movies": ["Django Unchained"]},
+    {"name": "Ken Watanabe", "movies": ["Inception", "Batman Begins"]},
+    {"name": "Michael Caine", "movies": ["The Dark Knight", "Batman Begins", "The Prestige", "Inception", "Interstellar", "Tenet", "Dunkirk"]},
+    {"name": "Anne Hathaway", "movies": ["The Dark Knight Rises", "Interstellar"]},
+]
+
+def seed():
+    driver = GraphDatabase.driver(URI, auth=(USERNAME, PASSWORD))
+    with driver.session() as session:
+        print("Clearing existing data...")
+        session.run("MATCH (n) DETACH DELETE n")
+        print("Creating movies...")
+        for m in movies:
+            session.run("CREATE (m:Movie {title: $title, year: $year, genre: $genre, rating: $rating})",
+                title=m["title"], year=m["year"], genre=m["genre"], rating=m["rating"])
+        print("Creating actors and relationships...")
+        for a in actors:
+            session.run("MERGE (a:Actor {name: $name})", name=a["name"])
+            for movie_title in a["movies"]:
+                session.run("MATCH (a:Actor {name: $name}) MATCH (m:Movie {title: $title}) MERGE (a)-[:ACTED_IN]->(m)",
+                    name=a["name"], title=movie_title)
+        print("Done!")
+    driver.close()
+
+if __name__ == "__main__":
+    seed()
