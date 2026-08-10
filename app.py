@@ -3,7 +3,7 @@ from flask_cors import CORS
 from neo4j import GraphDatabase
 import os
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(_name_)
 CORS(app)
 
 URI = os.environ.get("COGNODB_URI", "bolt+s://db-09f34e9e.databases.cognodb.com")
@@ -15,7 +15,8 @@ def get_driver():
 
 @app.route("/")
 def home():
-    return app.send_static_file("index.html")
+    with open("index. html") as f:
+    return f.read()
 
 @app.route("/api/health")
 def health():
