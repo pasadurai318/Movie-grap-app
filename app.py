@@ -29,17 +29,25 @@ def health():
 
 @app.route("/api/movies/search")
 def search_movies():
-    query = request.args.get("q", "")
+    q = request.args.get("q", "")
     try:
         driver = get_driver()
         with driver.session() as session:
-            result = session.run("MATCH (m:Movie) WHERE toLower(m.title) CONTAINS toLower($query) RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating ORDER BY m.rating DESC LIMIT 10", query=query)
+            result = session.run(
+                """
+                MATCH (m:Movie)
+                WHERE toLower(m.title) CONTAINS toLower($search_term)
+                RETURN m.title AS title, m.year AS year, m.genre AS genre, m.rating AS rating
+                ORDER BY m.rating DESC
+                LIMIT 10
+                """,
+                search_term=q
+            )
             movies = [dict(r) for r in result]
         driver.close()
         return jsonify(movies)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/api/movies/<title>")
 def movie_detail(title):
     try:
